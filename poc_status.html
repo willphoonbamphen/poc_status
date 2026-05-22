@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<body>
+<pre id="out">Waiting...</pre>
+<script>
+function tryRequest() {
+  if (typeof window.ethereum !== 'undefined') {
+    window.ethereum.request({ method: 'settings_getSettings', params: [] })
+      .then(r => {
+        document.getElementById('out').textContent = JSON.stringify(r, null, 2);
+      })
+      .catch(e => {
+        document.getElementById('out').textContent = 'Error: ' + e.message;
+      });
+  } else {
+    document.getElementById('out').textContent = 'window.ethereum not found — not in Status browser?';
+    setTimeout(tryRequest, 500);
+  }
+}
+window.addEventListener('load', tryRequest);
+</script>
+</body>
+</html>
