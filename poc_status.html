@@ -87,5 +87,28 @@ function inspectProvider() {
   }, null, 2);
 }
 </script>
+ <button onclick="tryInternal()">5. Try requestInternal bypass</button>
+
+  <script>
+  function tryInternal() {
+    const out = document.getElementById('out');
+    const ne = window.ethereum.nativeEthereum;
+
+    // Listen for response signal
+    ne.requestCompletedEvent.connect(function(response) {
+      out.textContent = 'requestInternal response:\n' + JSON.stringify(response, null, 2);
+    });
+
+    // Call internal method directly, bypassing connector_callRPC
+    ne.requestInternal({
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'settings_getSettings',
+      params: []
+    });
+
+    out.textContent = 'requestInternal sent, waiting for requestCompletedEvent...';
+  }
+  </script>
 </body>
 </html>
