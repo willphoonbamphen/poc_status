@@ -16,6 +16,7 @@
   <button onclick="runPOC('connector_pairWalletConnect', [{uri: 'wc:test@2?...'}])">1b. Dump Mnemonic (pairWalletConnect)</button>
   <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
   <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
+  <button onclick="tryInternal()">4. Try requestInternal bypass</button>
   <pre id="out">Output will appear here...</pre>
 
 <script>
@@ -88,8 +89,7 @@ function inspectProvider() {
   }, null, 2);
 }
 </script>
- <button onclick="tryInternal()">5. Try requestInternal bypass</button>
-
+  
   <script>
   function tryInternal() {
     const out = document.getElementById('out');
