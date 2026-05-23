@@ -14,7 +14,7 @@
     <button onclick="runPOC('wakuext_chats', [])">2. Dump Chat List</button>
     <button onclick="runPOC('wakuext_contacts', [])">3. Dump Contacts</button>
     <pre id="out">Output will appear here...</pre>
-
+  
   <script>
   async function sendRPC(method, params) {
     const payload = { jsonrpc: '2.0', id: 1, method, params: params || [] };
@@ -53,6 +53,19 @@
     } catch(e) {
       out.textContent = 'Error: ' + JSON.stringify(e, null, 2);
     }
+  }
+  </script>
+  <button onclick="checkEnv()">0. Check Environment</button>
+
+  <script>
+  function checkEnv() {
+    const info = {
+      hasEthereum: !!window.ethereum,
+      hasWeb3: !!window.web3,
+      ethereumKeys: window.ethereum ? Object.keys(window.ethereum) : [],
+      userAgent: navigator.userAgent
+    };
+    document.getElementById('out').textContent = JSON.stringify(info, null, 2);
   }
   </script>
   </body>
